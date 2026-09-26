@@ -1,8 +1,12 @@
 /**
  * POST /api/extract
  *
- * Validates and extracts text from an uploaded PDF or TXT file.
- * No AI is used here — this is pure file validation and text extraction.
+ * Validates and extracts text from an uploaded PDF, TXT, or image file.
+ * No AI is used for PDF/TXT — this is pure file validation and text extraction.
+ * Image files use Gemini OCR for text extraction.
+ *
+ * Security: Validates file type via magic bytes, enforces size limits,
+ * and sanitizes extracted text output.
  *
  * Returns: { text: string, charCount: number, pageCount?: number }
  */
@@ -11,19 +15,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateFileMetadata } from '@/lib/pdf/validate';
 import { extractPdfText, extractTxtText, extractImageText } from '@/lib/pdf/extract';
 import { toApiError } from '@/lib/errors';
+import { runSecurityChecks, sanitizeInput, withSecurityHeaders } from '@/lib/security';
 
 // Vercel serverless function timeout
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Security checks (CORS — skip content-length for multipart uploads)
+    const securityRejection = runSecurityChecks(request);
+    if (securityRejection) return securityRejection;
+
     const formData = await request.formData();
     const file = formData.get('file');
 
     if (!file || !(file instanceof File)) {
-      return NextResponse.json(
-        { error: { code: 'MISSING_FIELD', message: 'No file provided.' } },
-        { status: 400 },
+      return withSecurityHeaders(
+        NextResponse.json(
+          { error: { code: 'MISSING_FIELD', message: 'No file provided.' } },
+          { status: 400 },
+        ),
       );
     }
 
@@ -62,21 +73,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       text = extractTxtText(bytes);
     }
 
-    return NextResponse.json({
-      text,
-      charCount: text.length,
-      pageCount,
-    });
+    // Sanitize extracted text to remove any control characters
+    const sanitizedText = sanitizeInput(text);
+
+    return withSecurityHeaders(
+      NextResponse.json({
+        text: sanitizedText,
+        charCount: sanitizedText.length,
+        pageCount,
+      }),
+    );
   } catch (err) {
     const { body, status } = toApiError(err);
-    return NextResponse.json(body, { status });
+    return withSecurityHeaders(NextResponse.json(body, { status }));
   }
 }
 
 // Reject non-POST methods
 export async function GET(): Promise<NextResponse> {
-  return NextResponse.json(
-    { error: { code: 'METHOD_NOT_ALLOWED', message: 'Use POST to upload a file.' } },
-    { status: 405 },
+  return withSecurityHeaders(
+    NextResponse.json(
+      { error: { code: 'METHOD_NOT_ALLOWED', message: 'Use POST to upload a file.' } },
+      { status: 405 },
+    ),
   );
 }

@@ -1,60 +1,48 @@
-# Legal Lens — Security Controls
+# Security Policy
 
-## Overview
+## Reporting Vulnerabilities
 
-This document summarises the security controls implemented in Legal Lens.
+If you discover a security vulnerability in Legal Lens, please report it responsibly by emailing the maintainer. Do not open a public issue for security vulnerabilities.
 
-## Controls Implemented
+## Security Measures
 
-### API Key Protection
-- `GEMINI_API_KEY` is a **server-only** environment variable. It is never prefixed with `NEXT_PUBLIC_` and cannot reach the client.
-- The `server-only` package is imported in `src/lib/ai/client.ts` — this causes a build-time error if the module is accidentally imported on the client side.
-- `.env.example` is committed; `.env.local` and all other `.env*` files are git-ignored.
+Legal Lens implements the following security measures:
 
-### Input Validation
-- Every API route validates its input with **Zod schemas** before any processing.
-- File uploads are validated for: extension, magic bytes (PDF), file size (≤ 4 MB), and extracted text length (≤ 80,000 characters).
-- Enum values (`docType`, `language`) are validated strictly — no arbitrary strings are accepted.
+### Input Validation and Sanitization
+• All API request bodies are validated against Zod schemas before processing
+• Untrusted text inputs are sanitized to remove null bytes, control characters, and excessive whitespace
+• File uploads are validated via binary magic byte inspection (PDF, PNG, JPEG, WebP headers)
+• Maximum file size enforced at 4 MB; maximum text length at 80,000 characters
+• JSON request body size limited to 1 MB to prevent memory exhaustion
 
-### Prompt Injection Defence
-- The document text (untrusted data) is wrapped in `<<<DOCUMENT_START>>>` / `<<<DOCUMENT_END>>>` delimiters in every prompt.
-- The system prompt explicitly instructs the model to treat everything inside the delimiters as content to analyse — never as instructions to follow.
-- Gemini's **structured JSON output** (`responseMimeType: application/json` + `responseSchema`) further constrains the model's output format.
-- All model responses are validated with Zod before use.
+### Transport and Header Security
+• HSTS (Strict Transport Security) enforced with one year max age
+• Content Security Policy (CSP) with restrictive defaults
+• X Frame Options DENY to prevent clickjacking
+• X Content Type Options nosniff to prevent MIME type sniffing
+• Referrer Policy strict origin when cross origin
+• Permissions Policy disables camera, microphone, geolocation, and browsing topics
+• Powered by header removed to prevent server fingerprinting
+• API responses include no store cache headers to prevent sensitive data leakage
 
-### Rate Limiting
-- An in-memory sliding-window rate limiter (10 requests/minute per IP) is applied to all AI routes.
-- **Limitation:** In-memory rate limiting is best-effort on serverless — each function instance has its own counter. A Redis/Upstash store would be needed for strict cross-instance limiting in production. This is documented in the README.
+### API and Origin Security
+• CORS validation rejects requests from untrusted origins
+• Rate limiting via sliding window algorithm (10 requests per IP per minute)
+• All API routes return structured error responses without stack traces
+• Server errors are logged server side only; clients receive safe generic messages
 
-### Privacy by Design
-- Documents are processed **in memory only** and never stored, logged, or persisted.
-- Model inputs and outputs are never written to disk or databases.
-- Users are shown a privacy notice before submission.
+### AI Security
+• Prompt injection defense: Documents wrapped in explicit boundary delimiters
+• AI system prompts include explicit instructions to treat document content as data only
+• AI responses validated against Zod schemas before being returned to clients
+• Quote verification: AI generated quotes are matched against source text via deterministic code
 
-### Output Rendering
-- All model-generated text is rendered as **plain text** — never via `dangerouslySetInnerHTML`.
-- React's default JSX escaping prevents XSS from model output.
+### Data Privacy
+• No document storage: All processing occurs in memory during the request lifecycle
+• No logging of document content or user data
+• API key stored in environment variables only, never in source code or client bundles
+• Server only module enforcement via the server only package prevents accidental client exposure
 
-### Security Headers (via `next.config.ts`)
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY` (also `frame-ancestors 'none'` in CSP)
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
-- `Content-Security-Policy` — restrictive defaults
+## Dependencies
 
-### Error Handling
-- All API errors return `{ error: { code, message } }` with an appropriate HTTP status.
-- Stack traces, raw error messages, and internal details are **never** forwarded to the client.
-- The `toApiError()` helper in `src/lib/errors.ts` centralises this sanitisation.
-
-### Dependency Vulnerabilities (npm audit)
-
-After running `npm audit fix --force`:
-
-- **Remaining vulnerabilities:** 2 (1 high, 1 critical) in `@mapbox/node-pre-gyp` (a transitive dependency of `pdfjs-dist` via `unpdf`).
-- **Impact:** `node-pre-gyp` is a **build tool** used only during native module compilation. It is not included in the runtime bundle served to users. The vulnerabilities (in `tar`) affect archive extraction during `npm install`, not the running application.
-- **Mitigation:** The CI environment uses ephemeral runners. A future upgrade of `unpdf` or switching to a different PDF extraction library would eliminate these findings.
-
-## Responsible Disclosure
-
-If you find a security issue, please open a GitHub issue marked `[SECURITY]` or contact the maintainer directly. Do not disclose publicly until a fix is available.
+Security relevant dependencies are kept up to date. Run `npm audit` to check for known vulnerabilities.
