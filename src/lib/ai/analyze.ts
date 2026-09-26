@@ -19,7 +19,7 @@ import { generateStructured } from './client';
 import { ANALYZE_MAX_OUTPUT_TOKENS } from './client';
 import { buildAnalyzeSystemPrompt, buildAnalyzeUserPrompt, PROMPT_VERSION } from './prompts';
 import { verifyQuotes } from './verify';
-import { makeCacheKey, getCached, setCached } from '@/lib/cache';
+import { makeCacheKey, getCached, setCached, deduplicateRequest } from '@/lib/cache';
 import {
   ModelAnalysisSchema,
   AnalysisResult,
@@ -146,56 +146,64 @@ export async function analyzeDocument(
   const cached = getCached<AnalysisResult>(cacheKey);
   if (cached) return cached;
 
-  // 2. Call Gemini
-  const raw = await generateStructured({
-    systemInstruction: buildAnalyzeSystemPrompt(),
-    userPrompt: buildAnalyzeUserPrompt(text, docType, language),
-    responseSchema: ANALYZE_RESPONSE_SCHEMA,
-    maxOutputTokens: ANALYZE_MAX_OUTPUT_TOKENS,
-  });
+  // 2. Request deduplication (coalesces simultaneous identical requests)
+  return deduplicateRequest(cacheKey, async () => {
+    // Re-check cache in case a concurrent request just resolved and populated it
+    const lateCached = getCached<AnalysisResult>(cacheKey);
+    if (lateCached) return lateCached;
 
-  // 3. Validate response shape with zod
-  const parsed = ModelAnalysisSchema.safeParse(raw);
-  if (!parsed.success) {
-    throw new LegalLensError(
-      ErrorCode.MODEL_INVALID_RESPONSE,
-      'The AI returned an unexpected response format.',
-      502,
-    );
-  }
-
-  const modelResult = parsed.data;
-
-  // 4. Verify quotes (code, not model)
-  const quotes = modelResult.clauses.map((c) => c.quote);
-  const verified = verifyQuotes(text, quotes);
-
-  // 5. Build final clauses with quoteVerified set
-  const clauses = modelResult.clauses
-    .map((clause, i) => ({
-      ...clause,
-      quoteVerified: verified[i] ?? false,
-    }))
-    // Sort by risk level: high → medium → low → info
-    .sort((a, b) => {
-      const order: Record<RiskLevel, number> = { high: 0, medium: 1, low: 2, info: 3 };
-      return order[a.riskLevel] - order[b.riskLevel];
+    // Call Gemini
+    const raw = await generateStructured({
+      systemInstruction: buildAnalyzeSystemPrompt(),
+      userPrompt: buildAnalyzeUserPrompt(text, docType, language),
+      responseSchema: ANALYZE_RESPONSE_SCHEMA,
+      maxOutputTokens: ANALYZE_MAX_OUTPUT_TOKENS,
     });
 
-  // 6. Compute deterministic risk summary
-  const riskSummary = computeRiskSummary(clauses.map((c) => c.riskLevel));
+    // Validate response shape with zod
+    const parsed = ModelAnalysisSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new LegalLensError(
+        ErrorCode.MODEL_INVALID_RESPONSE,
+        'The AI returned an unexpected response format.',
+        502,
+      );
+    }
 
-  const result: AnalysisResult = {
-    clauses,
-    keyFacts: modelResult.keyFacts,
-    missingProtections: modelResult.missingProtections,
-    lawyerQuestions: modelResult.lawyerQuestions,
-    riskSummary,
-    docType,
-    language,
-  };
+    const modelResult = parsed.data;
 
-  // 7. Cache and return
-  setCached(cacheKey, result);
-  return result;
+    // Verify quotes (code, not model)
+    const quotes = modelResult.clauses.map((c) => c.quote);
+    const verified = verifyQuotes(text, quotes);
+
+    // Build final clauses with quoteVerified set
+    const clauses = modelResult.clauses
+      .map((clause, i) => ({
+        ...clause,
+        quoteVerified: verified[i] ?? false,
+      }))
+      // Sort by risk level: high → medium → low → info
+      .sort((a, b) => {
+        const order: Record<RiskLevel, number> = { high: 0, medium: 1, low: 2, info: 3 };
+        return order[a.riskLevel] - order[b.riskLevel];
+      });
+
+    // Compute deterministic risk summary
+    const riskSummary = computeRiskSummary(clauses.map((c) => c.riskLevel));
+
+    const result: AnalysisResult = {
+      clauses,
+      keyFacts: modelResult.keyFacts,
+      missingProtections: modelResult.missingProtections,
+      lawyerQuestions: modelResult.lawyerQuestions,
+      riskSummary,
+      docType,
+      language,
+    };
+
+    // Cache and return
+    setCached(cacheKey, result);
+    return result;
+  });
 }
+

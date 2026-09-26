@@ -12,6 +12,7 @@
  * - Click/Enter highlights the quote in the source text panel
  */
 
+import { memo } from 'react';
 import { Clause } from '@/lib/schemas/analyze';
 import { RiskBadge } from './RiskBadge';
 import { SpeakButton } from './SpeakButton';
@@ -22,7 +23,7 @@ interface ClauseCardProps {
   onSelect: (clauseId: string) => void;
 }
 
-export function ClauseCard({ clause, isSelected, onSelect }: ClauseCardProps) {
+export const ClauseCard = memo(function ClauseCard({ clause, isSelected, onSelect }: ClauseCardProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -110,4 +111,4 @@ export function ClauseCard({ clause, isSelected, onSelect }: ClauseCardProps) {
       </div>
     </div>
   );
-}
+});

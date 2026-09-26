@@ -7,6 +7,7 @@
  * Each badge includes both an icon and a text label.
  */
 
+import { memo } from 'react';
 import { RiskLevel } from '@/lib/schemas/analyze';
 
 interface RiskBadgeProps {
@@ -45,7 +46,7 @@ const RISK_CONFIG: Record<
   },
 };
 
-export function RiskBadge({ level, size = 'sm' }: RiskBadgeProps) {
+export const RiskBadge = memo(function RiskBadge({ level, size = 'sm' }: RiskBadgeProps) {
   const config = RISK_CONFIG[level];
   const sizeClass = size === 'md' ? 'px-3 py-1.5 text-sm font-semibold' : 'px-2 py-0.5 text-xs font-medium';
 
@@ -59,4 +60,5 @@ export function RiskBadge({ level, size = 'sm' }: RiskBadgeProps) {
       {config.label}
     </span>
   );
-}
+});
+

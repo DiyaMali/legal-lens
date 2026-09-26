@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
 
+  /** Experimental optimization to tree-shake heavy icon imports */
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
+
   /**
    * Enable React strict mode for catching potential issues in development.
    * This surfaces side-effect bugs and deprecated API usage early.

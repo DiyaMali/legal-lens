@@ -126,6 +126,7 @@ export function GuideLauncher() {
                 src="/images/legal-guide-mascot.png"
                 alt="Legal Lens Guide Peeking Mascot"
                 fill
+                sizes="56px"
                 className="object-contain"
                 priority
               />
@@ -174,6 +175,7 @@ export function GuideLauncher() {
                 src="/images/legal-guide-mascot.png"
                 alt="Legal Lens Mascot Guide"
                 fill
+                sizes="56px"
                 className="object-contain"
                 priority
               />
@@ -223,6 +225,7 @@ export function GuideLauncher() {
                       src="/images/legal-guide-mascot.png"
                       alt="Guide"
                       fill
+                      sizes="28px"
                       className="object-contain p-0.5"
                     />
                   </div>

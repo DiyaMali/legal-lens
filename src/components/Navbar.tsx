@@ -58,6 +58,7 @@ export function Navbar() {
               src="/images/mascot.png"
               alt="Legal Lens Mascot"
               fill
+              sizes="36px"
               className="object-cover"
               priority
             />

@@ -263,6 +263,7 @@ export default function HomePage() {
                 src="/images/mascot.png"
                 alt="Legal Lens Mascot"
                 fill
+                sizes="40px"
                 className="object-cover"
                 priority
               />

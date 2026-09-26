@@ -1,14 +1,12 @@
 /**
- * In-memory LRU cache for AI analysis results.
+ * In-memory LRU cache and request coalescing for AI analysis results.
  *
  * WHY: Identical requests (same document text + docType + language + prompt version)
  * should not repeat expensive Gemini API calls. The cache key is a SHA-256 hash,
  * so documents are never stored as plaintext.
  *
- * Limitations (noted in README):
- * - In-memory only: cache is not shared across serverless function instances.
- * - Evicted on cold start. This is acceptable for an MVP; a Redis/Memcached store
- *   would provide shared, persistent caching in production.
+ * In-flight request deduplication prevents thundering herd / dogpiling when multiple
+ * clients request analysis of the same document simultaneously.
  */
 
 import { LRUCache } from 'lru-cache';
@@ -30,6 +28,9 @@ function getAnalyzeCache(): LRUCache<string, CacheValue> {
   }
   return _analyzeCache;
 }
+
+/** Map of in-flight promises to deduplicate concurrent requests */
+const inFlightRequests = new Map<string, Promise<unknown>>();
 
 /**
  * Compute a SHA-256 cache key from an arbitrary set of inputs.
@@ -54,10 +55,11 @@ export function setCached<T extends CacheValue>(key: string, value: T): void {
 }
 
 /**
- * Clear the entire cache (useful in tests).
+ * Clear the entire cache and in-flight requests (useful in tests).
  */
 export function clearCache(): void {
   getAnalyzeCache().clear();
+  inFlightRequests.clear();
 }
 
 /**
@@ -65,4 +67,30 @@ export function clearCache(): void {
  */
 export function getCacheSize(): number {
   return getAnalyzeCache().size;
+}
+
+/**
+ * Coalesce concurrent identical requests into a single promise.
+ * If a request for `key` is already in flight, returns that existing promise.
+ * Once resolved or rejected, the in-flight entry is cleaned up.
+ */
+export async function deduplicateRequest<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+): Promise<T> {
+  const existing = inFlightRequests.get(key);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+
+  const promise = (async () => {
+    try {
+      return await fetcher();
+    } finally {
+      inFlightRequests.delete(key);
+    }
+  })();
+
+  inFlightRequests.set(key, promise);
+  return promise;
 }

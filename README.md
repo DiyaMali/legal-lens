@@ -14,8 +14,11 @@ Evaluation Focus Areas and Project Verification
 • Strict TypeScript enabled with zero type errors across the entire codebase (tsc noEmit)
 • Zero usage of any types or non null assertion operators
 • Modular Next.js App Router architecture with clean separation of concerns
+• Dedicated architecture blueprint documented in ARCHITECTURE.md
+• Centralized barrel exports across components and lib modules for clean encapsulation
 • Single source of truth: TypeScript types inferred directly from Zod validation schemas
 • Comprehensive JSDoc documentation on every exported function and module
+• Cross platform consistency enforced via .editorconfig and .gitattributes
 • Central configuration module (config.ts) with typed constants and no magic numbers
 • Consistent error handling via typed error codes and a unified error factory (errors.ts)
 • Clean Git history with conventional commit messages (fix, feat, docs, test prefixes)
@@ -38,14 +41,17 @@ Evaluation Focus Areas and Project Verification
 
 3. Efficiency: Optimal Use of Resources
 • Single pass Gemini intelligence: Clause breakdown, key facts, missing protections, and lawyer questions processed in one API call instead of four
-• In memory LRU caching indexed by SHA 256 document hashes to deliver instant repeat analysis without redundant API calls
+• In flight request deduplication: Coalesces concurrent identical analysis requests into a single promise to prevent redundant API calls
+• In memory LRU caching indexed by SHA 256 document hashes to deliver instant repeat analysis
+• React.memo list render optimizations on ClauseCard and RiskBadge preventing unnecessary DOM re renders
+• Tree shaking optimization via optimizePackageImports to minimize bundle size
 • Multi model cascading failover with automatic retry: If the primary Gemini model is overloaded (429/503), the system cascades through fallback models
+• Responsive image optimization with explicit sizes attributes across all mascot and brand images
+• Bounded memory sliding window rate limiting with automated stale key sweeping
 • Serverless optimized PDF text extraction using unpdf (no heavy native binaries)
 • Dynamic imports: unpdf loaded lazily only when PDF extraction is needed, keeping cold start times minimal
 • Response compression enabled (gzip/brotli) via Next.js compress configuration
 • Image optimization with AVIF and WebP format support via Next.js Image Optimization API
-• Sliding window rate limiting to safeguard backend compute resources against abuse
-• SHA 256 cache keys: Document text is never stored as plaintext in the cache
 • Configurable output token limits per endpoint to minimize unnecessary AI generation costs
 • React Strict Mode enabled for early detection of performance regressions and side effect bugs
 • Deterministic risk computation: Risk summaries calculated via code, not additional AI calls
