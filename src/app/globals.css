@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   CSS custom properties (design tokens)
+--------------------------------------------------------------------------- */
+:root {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+}
+
+/* ---------------------------------------------------------------------------
+   Base styles
+--------------------------------------------------------------------------- */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Focus visible styles — never remove focus outlines */
+:focus-visible {
+  outline: 2px solid #4f52e6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   Print stylesheet (for lawyer-prep brief)
+--------------------------------------------------------------------------- */
+@media print {
+  /* Hide navigation and interactive elements when printing */
+  header,
+  nav,
+  .no-print,
+  button:not(.print-include) {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+    font-size: 12pt;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Ensure page breaks work correctly */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Utility: screen-reader only (sr-only is in Tailwind but we need it for
+   the skip link before Tailwind loads)
+--------------------------------------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Loading skeleton animation
+--------------------------------------------------------------------------- */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+}
