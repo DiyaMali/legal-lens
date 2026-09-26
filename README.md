@@ -3,6 +3,7 @@
 AI powered plain language legal document assistant: understand, compare, and navigate agreements without a law degree.
 
 Public Repository: https://github.com/DiyaMali/legal-lens
+Live Deployment: https://legal-lens-app.vercel.app
 
 ================================================================================
 Evaluation Focus Areas and Project Verification
@@ -126,7 +127,7 @@ Google Gemini API key from Google AI Studio
 
 Installation:
 git clone https://github.com/DiyaMali/legal-lens.git
-cd legal-lens
+cd legal_lens
 npm install
 npm run dev
 
